@@ -80,14 +80,26 @@ class EdgeDetectionApp
         return grayscale;
     }
 
+    /**
+     * This method applies the Sobel edge detection algorithm to a given Bitmap image.
+     * It first converts the image to grayscale, then calculates the gradient magnitude
+     * at each pixel using Sobel kernels for both the x and y directions. The result is 
+     * an edge-detected image.
+     *
+     * @param image The input Bitmap image to be processed.
+     * @return A new Bitmap image containing the edges detected in the input image.
+     */
     private static Bitmap SobelEdgeDetection(Bitmap image)
     {
+        // Convert the image to grayscale for simplicity in processing
         Bitmap grayScaleImage = ConvertToGrayscale(image);
         Bitmap edgeImage = new Bitmap(grayScaleImage.Width, grayScaleImage.Height);
 
+        // Define Sobel kernels for edge detection in the x and y directions
         int[,] xKernel = { { -1, 0, 1 }, { -2, 0, 2 }, { -1, 0, 1 } };
         int[,] yKernel = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
 
+        // Loop through each pixel in the grayscale image, excluding the border pixels
         for (int y = 1; y < grayScaleImage.Height - 1; y++)
         {
             for (int x = 1; x < grayScaleImage.Width - 1; x++)
@@ -95,24 +107,29 @@ class EdgeDetectionApp
                 float xGradient = 0;
                 float yGradient = 0;
 
+                // Apply the Sobel kernels to the surrounding pixels
                 for (int ky = -1; ky <= 1; ky++)
                 {
                     for (int kx = -1; kx <= 1; kx++)
                     {
                         Color pixel = grayScaleImage.GetPixel(x + kx, y + ky);
-                        int pixelBrightness = pixel.R;
+                        int pixelBrightness = pixel.R; // Use the red channel value as brightness
                         xGradient += pixelBrightness * xKernel[ky + 1, kx + 1];
                         yGradient += pixelBrightness * yKernel[ky + 1, kx + 1];
                     }
                 }
 
+                // Calculate the gradient magnitude and clamp it to the range [0, 255]
                 int gradientMagnitude = (int)Math.Min(Math.Sqrt(xGradient * xGradient + yGradient * yGradient), 255);
+
+                // Set the pixel in the edge image to the gradient magnitude
                 edgeImage.SetPixel(x, y, Color.FromArgb(gradientMagnitude, gradientMagnitude, gradientMagnitude));
             }
         }
 
-        return edgeImage;
+        return edgeImage; // Return the processed edge-detected image
     }
+
 
     private static Bitmap DetectHarrisCorners(Bitmap image)
     {
@@ -124,6 +141,34 @@ class EdgeDetectionApp
         return corners;
     }
 
+    /**
+     * This method calculates the spatial derivatives (Ix, Iy) of a given image using a simple central difference method.
+     * Spatial derivatives are used to measure changes in intensity values along the x and y directions in the image.
+     * 
+     * The method returns a tuple containing two Bitmap objects: 
+     * 1. Ix - The derivative of the image along the x-axis.
+     * 2. Iy - The derivative of the image along the y-axis.
+     * 
+     * The central difference method is applied to each pixel (excluding the border pixels) to calculate the derivatives.
+     * For each pixel (x, y) in the image, the derivative in the x direction (Ix) is computed as the difference between the 
+     * right and left neighboring pixel values, divided by 2. Similarly, the derivative in the y direction (Iy) is computed 
+     * as the difference between the top and bottom neighboring pixel values, divided by 2.
+     * 
+     * Parameters:
+     *   Bitmap image - The input image for which the spatial derivatives are to be calculated.
+     * 
+     * Returns:
+     *   (Bitmap, Bitmap) - A tuple containing the Ix and Iy derivative images.
+     * 
+     * Example usage:
+     *   Bitmap inputImage = new Bitmap("path_to_image");
+     *   (Bitmap Ix, Bitmap Iy) = CalculateSpatialDerivatives(inputImage);
+     * 
+     * Note:
+     *   - The method assumes that the input image is a grayscale image. If the input image is in color, only the red channel
+     *     is considered for derivative calculation.
+     *   - The border pixels (the first and last rows and columns) are not processed to avoid boundary issues.
+     */
     private static (Bitmap, Bitmap) CalculateSpatialDerivatives(Bitmap image)
     {
         Bitmap Ix = new Bitmap(image.Width, image.Height);
@@ -144,31 +189,49 @@ class EdgeDetectionApp
         return (Ix, Iy);
     }
 
+
+    /**
+     * This method performs non-maximum suppression on a given Bitmap image.
+     * Non-maximum suppression is a technique used to identify and keep the maximum response in a local neighborhood
+     * while suppressing (setting to zero) all other responses. This is typically used in edge detection algorithms 
+     * or corner detection algorithms to thin out the detected edges or corners.
+     *
+     * @param response The input Bitmap image on which non-maximum suppression is to be performed.
+     * @return A Bitmap image where detected corners are highlighted in red, and non-corner pixels are set to black.
+     */
     private static Bitmap NonMaximumSuppression(Bitmap response)
     {
+        // Create a new Bitmap to store the result of the non-maximum suppression
         Bitmap corners = new Bitmap(response.Width, response.Height);
 
+        // Loop through each pixel in the image, excluding the border pixels
         for (int y = 1; y < response.Height - 1; y++)
         {
             for (int x = 1; x < response.Width - 1; x++)
             {
+                // Get the color of the current pixel
                 Color pixelColor = response.GetPixel(x, y);
                 bool isCorner = true;
 
+                // Check the 3x3 neighborhood of the current pixel
                 for (int v = -1; v <= 1; v++)
                 {
                     for (int u = -1; u <= 1; u++)
                     {
+                        // Skip the current pixel itself
                         if (u == 0 && v == 0) continue;
+                        // If any neighboring pixel has a higher intensity, mark the current pixel as not a corner
                         if (response.GetPixel(x + u, y + v).R > pixelColor.R)
                         {
                             isCorner = false;
                             break;
                         }
                     }
+                    // If the current pixel is not a corner, break out of the outer loop as well
                     if (!isCorner) break;
                 }
 
+                // If the current pixel is a corner, set it to red in the corners Bitmap, otherwise set it to black
                 if (isCorner)
                 {
                     corners.SetPixel(x, y, Color.Red);
@@ -180,8 +243,10 @@ class EdgeDetectionApp
             }
         }
 
+        // Return the resulting Bitmap with the detected corners
         return corners;
     }
+
 
 
     /*
