@@ -410,6 +410,7 @@ class EdgeDetectionApp
          * to keep the calculated response values for each pixel. It also initializes `maxResponse` and `minResponse`
          * to track the maximum and minimum response values, which will be used for normalization later.
          */
+
         Bitmap response = new Bitmap(image.Width, image.Height);
         double[,] responseValues = new double[image.Width, image.Height];
         double maxResponse = double.MinValue;
@@ -426,6 +427,7 @@ class EdgeDetectionApp
          * using the `GetPixel` method. It then computes the products of these gradients, which are summed into `Ixx`, `Iyy`,
          * and `Ixy`.
          */
+
         for (int y = 1; y < image.Height - 1; y++)
         {
             for (int x = 1; x < image.Width - 1; x++)
@@ -444,7 +446,6 @@ class EdgeDetectionApp
                         Ixy += ix * iy;
                     }
                 }
-
                 /*
                  * After exiting the inner loops, the code computes the determinant and trace of the second moment matrix M,
                  * and subsequently calculates the Harris response value for the pixel using the formula:
@@ -452,6 +453,7 @@ class EdgeDetectionApp
                  * Here, k is an empirical constant, typically around 0.04. The response value is stored in `responseValues`,
                  * and `maxResponse` and `minResponse` are updated to keep track of the range of response values.
                  */
+
                 double determinant = (Ixx * Iyy) - (Ixy * Ixy);
                 double trace = Ixx + Iyy;
                 double responseValue = determinant - 0.04 * trace * trace;
@@ -462,31 +464,22 @@ class EdgeDetectionApp
             }
         }
 
-        /*
-         * Normalizing the Response Values
-         *
-         * After calculating the response values for all pixels, the code normalizes these values to the 0-255 range.
-         * This normalization is essential for converting the response values into a grayscale image where the intensity
-         * of each pixel represents the strength of the corner response.
-         *
-         * The normalization formula used here scales the response values linearly between the minimum and maximum response
-         * values observed. The normalized value is then set as the intensity of the corresponding pixel in the `response` bitmap.
-         */
-        for (int y = 0; y < image.Height; y++)
+
+        // Normalize the response values to the range [0, 255]
+        for (int y = 1; y < image.Height - 1; y++)
         {
-            for (int x = 0; x < image.Width; x++)
+            for (int x = 1; x < image.Width - 1; x++)
             {
-                int normalizedValue = (int)(255.0 * (responseValues[x, y] - minResponse) / (maxResponse - minResponse));
-                response.SetPixel(x, y, Color.FromArgb(normalizedValue, normalizedValue, normalizedValue));
+                double normalizedResponse = 255.0 * (responseValues[x, y] - minResponse) / (maxResponse - minResponse);
+                int intensity = (int)normalizedResponse;
+                intensity = Math.Max(0, Math.Min(255, intensity)); // Ensure the intensity is within [0, 255]
+                response.SetPixel(x, y, Color.FromArgb(intensity, intensity, intensity));
             }
         }
 
-        /*
-         * Returning the Result
-         *
-         * Finally, the function returns the `response` bitmap, which now contains the Harris corner response values as a grayscale image.
-         */
         return response;
     }
+
+
 }
 
