@@ -178,7 +178,7 @@ class EdgeDetectionApp
                 Bitmap edgeImage = SobelEdgeDetection(inputImage); 
                 edgeImage.Save(outputFilePath);
                 Bitmap harrisImage = DetectHarrisCorners(edgeImage);
-                harrisImage.Save(outputFilePath2);
+                harrisImage.Save(outputFileName2);
                 Console.WriteLine($"Edge and corner detection completed for {file}. Result saved to {outputFilePath}");
             }
         }
