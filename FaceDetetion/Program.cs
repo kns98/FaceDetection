@@ -319,7 +319,7 @@ class EdgeDetectionApp
             (Bitmap Ix, Bitmap Iy) = CalculateSpatialDerivatives(grayscaleImage);
             Bitmap responseImage = CalculateHarrisResponse(grayscaleImage, Ix, Iy);
             //Bitmap corners = NonMaximumSuppression(responseImage);
-            List<Point> corners_ = FindCorners(responseImage, 10, 10);
+            List<Point> corners_ = CornerFinder.FindCorners(responseImage, 10, 10);
 
             // Draw circles around detected corners
             foreach (var corner in corners_)
@@ -336,35 +336,7 @@ class EdgeDetectionApp
             throw;
         }
     }
-    private static List<Point> FindCorners(Bitmap response, double threshold, int minDistance)
-    {
-        List<Point> corners = new List<Point>();
-        for (int y = 1; y < response.Height - 1; y++)
-        {
-            for (int x = 1; x < response.Width - 1; x++)
-            {
-                if (response.GetPixel(x, y).R > threshold)
-                {
-                    bool tooClose = false;
-                    foreach (var corner in corners)
-                    {
-                        int dx = corner.X - x;
-                        int dy = corner.Y - y;
-                        if (dx * dx + dy * dy < minDistance * minDistance)
-                        {
-                            tooClose = true;
-                            break;
-                        }
-                    }
-                    if (!tooClose)
-                    {
-                        corners.Add(new Point(x, y));
-                    }
-                }
-            }
-        }
-        return corners;
-    }
+  
 
     private static void DrawCircle(Bitmap image, int centerX, int centerY, int radius, Color color)
     {
