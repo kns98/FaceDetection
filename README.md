@@ -1,1 +1,1 @@
-experimental. wip.
+sobel harris corners. tbd face detection.
