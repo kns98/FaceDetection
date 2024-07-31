@@ -116,8 +116,6 @@
  * identifies key landmarks. Together, these methods enable accurate localization and identification of faces 
  * in images, forming a critical component of modern face detection systems.
  */
-
-
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -130,31 +128,39 @@ class EdgeDetectionApp
 
     static void Main(string[] args)
     {
-        if (args.Length < 1)
+        try
         {
-            Console.WriteLine("Usage: EdgeDetectionApp <input directory path>");
-            return;
-        }
-
-        string inputDirectoryPath = args[0];
-        string[] extensions = { ".jpg", ".jpeg", ".png" };
-        string[] files = Directory.GetFiles(inputDirectoryPath);
-
-        foreach (string file in files)
-        {
-            if (Array.Exists(extensions, ext => file.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
+            if (args.Length < 1)
             {
-                Interlocked.Increment(ref processedFiles);
-                ThreadPool.QueueUserWorkItem(ProcessImageFile, file);
+                Console.WriteLine("Usage: EdgeDetectionApp <input directory path>");
+                return;
             }
-        }
 
-        while (processedFiles > 0)
+            string inputDirectoryPath = args[0];
+            string[] extensions = { ".jpg", ".jpeg", ".png" };
+            string[] files = Directory.GetFiles(inputDirectoryPath);
+
+            foreach (string file in files)
+            {
+                if (Array.Exists(extensions, ext => file.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
+                {
+                    Interlocked.Increment(ref processedFiles);
+                    ThreadPool.QueueUserWorkItem(ProcessImageFile, file);
+                }
+            }
+
+            while (processedFiles > 0)
+            {
+                Thread.Sleep(100);
+            }
+
+            Console.WriteLine("All files have been processed.");
+        }
+        catch (Exception ex)
         {
-            Thread.Sleep(100);
+            Console.WriteLine($"An error occurred in Main: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
         }
-
-        Console.WriteLine("All files have been processed.");
     }
 
     private static void ProcessImageFile(object state)
@@ -177,6 +183,7 @@ class EdgeDetectionApp
         catch (Exception ex)
         {
             Console.WriteLine($"An error occurred processing {file}: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
         }
         finally
         {
@@ -184,20 +191,37 @@ class EdgeDetectionApp
         }
     }
 
+    /**
+     * This method converts a given Bitmap image to grayscale.
+     * It iterates through each pixel, calculates the grayscale value using the luminance formula, 
+     * and sets the pixel in the new grayscale image.
+     *
+     * @param image The input Bitmap image to be converted.
+     * @return A new Bitmap image in grayscale.
+     */
     private static Bitmap ConvertToGrayscale(Bitmap image)
     {
-        Bitmap grayscale = new Bitmap(image.Width, image.Height);
-        for (int y = 0; y < image.Height; y++)
+        try
         {
-            for (int x = 0; x < image.Width; x++)
+            Bitmap grayscale = new Bitmap(image.Width, image.Height);
+            for (int y = 0; y < image.Height; y++)
             {
-                Color originalColor = image.GetPixel(x, y);
-                int grayScale = (int)(originalColor.R * 0.299 + originalColor.G * 0.587 + originalColor.B * 0.114);
-                Color grayColor = Color.FromArgb(grayScale, grayScale, grayScale);
-                grayscale.SetPixel(x, y, grayColor);
+                for (int x = 0; x < image.Width; x++)
+                {
+                    Color originalColor = image.GetPixel(x, y);
+                    int grayScale = (int)(originalColor.R * 0.299 + originalColor.G * 0.587 + originalColor.B * 0.114);
+                    Color grayColor = Color.FromArgb(grayScale, grayScale, grayScale);
+                    grayscale.SetPixel(x, y, grayColor);
+                }
             }
+            return grayscale;
         }
-        return grayscale;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred in ConvertToGrayscale: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            throw; // Re-throw the exception to allow higher-level handling if necessary
+        }
     }
 
     /**
@@ -211,54 +235,80 @@ class EdgeDetectionApp
      */
     private static Bitmap SobelEdgeDetection(Bitmap image)
     {
-        // Convert the image to grayscale for simplicity in processing
-        Bitmap grayScaleImage = ConvertToGrayscale(image);
-        Bitmap edgeImage = new Bitmap(grayScaleImage.Width, grayScaleImage.Height);
-
-        // Define Sobel kernels for edge detection in the x and y directions
-        int[,] xKernel = { { -1, 0, 1 }, { -2, 0, 2 }, { -1, 0, 1 } };
-        int[,] yKernel = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
-
-        // Loop through each pixel in the grayscale image, excluding the border pixels
-        for (int y = 1; y < grayScaleImage.Height - 1; y++)
+        try
         {
-            for (int x = 1; x < grayScaleImage.Width - 1; x++)
+            // Convert the image to grayscale for simplicity in processing
+            Bitmap grayScaleImage = ConvertToGrayscale(image);
+            Bitmap edgeImage = new Bitmap(grayScaleImage.Width, grayScaleImage.Height);
+
+            // Define Sobel kernels for edge detection in the x and y directions
+            int[,] xKernel = { { -1, 0, 1 }, { -2, 0, 2 }, { -1, 0, 1 } };
+            int[,] yKernel = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
+
+            // Loop through each pixel in the grayscale image, excluding the border pixels
+            for (int y = 1; y < grayScaleImage.Height - 1; y++)
             {
-                float xGradient = 0;
-                float yGradient = 0;
-
-                // Apply the Sobel kernels to the surrounding pixels
-                for (int ky = -1; ky <= 1; ky++)
+                for (int x = 1; x < grayScaleImage.Width - 1; x++)
                 {
-                    for (int kx = -1; kx <= 1; kx++)
+                    float xGradient = 0;
+                    float yGradient = 0;
+
+                    // Apply the Sobel kernels to the surrounding pixels
+                    for (int ky = -1; ky <= 1; ky++)
                     {
-                        Color pixel = grayScaleImage.GetPixel(x + kx, y + ky);
-                        int pixelBrightness = pixel.R; // Use the red channel value as brightness
-                        xGradient += pixelBrightness * xKernel[ky + 1, kx + 1];
-                        yGradient += pixelBrightness * yKernel[ky + 1, kx + 1];
+                        for (int kx = -1; kx <= 1; kx++)
+                        {
+                            Color pixel = grayScaleImage.GetPixel(x + kx, y + ky);
+                            int pixelBrightness = pixel.R; // Use the red channel value as brightness
+                            xGradient += pixelBrightness * xKernel[ky + 1, kx + 1];
+                            yGradient += pixelBrightness * yKernel[ky + 1, kx + 1];
+                        }
                     }
+
+                    // Calculate the gradient magnitude and clamp it to the range [0, 255]
+                    int gradientMagnitude = (int)Math.Min(Math.Sqrt(xGradient * xGradient + yGradient * yGradient), 255);
+
+                    // Set the pixel in the edge image to the gradient magnitude
+                    edgeImage.SetPixel(x, y, Color.FromArgb(gradientMagnitude, gradientMagnitude, gradientMagnitude));
                 }
-
-                // Calculate the gradient magnitude and clamp it to the range [0, 255]
-                int gradientMagnitude = (int)Math.Min(Math.Sqrt(xGradient * xGradient + yGradient * yGradient), 255);
-
-                // Set the pixel in the edge image to the gradient magnitude
-                edgeImage.SetPixel(x, y, Color.FromArgb(gradientMagnitude, gradientMagnitude, gradientMagnitude));
             }
-        }
 
-        return edgeImage; // Return the processed edge-detected image
+            return edgeImage; // Return the processed edge-detected image
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred in SobelEdgeDetection: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            throw;
+        }
     }
 
-
+    /**
+     * This method detects Harris corners in a given Bitmap image.
+     * It converts the image to grayscale, calculates the spatial derivatives, 
+     * computes the Harris response, and applies non-maximum suppression to 
+     * identify corners.
+     *
+     * @param image The input Bitmap image in which to detect corners.
+     * @return A new Bitmap image with detected corners highlighted in red.
+     */
     private static Bitmap DetectHarrisCorners(Bitmap image)
     {
-        Bitmap grayscaleImage = ConvertToGrayscale(image);
-        (Bitmap Ix, Bitmap Iy) = CalculateSpatialDerivatives(grayscaleImage);
-        Bitmap responseImage = CalculateHarrisResponse(grayscaleImage, Ix, Iy);
-        Bitmap corners = NonMaximumSuppression(responseImage);
+        try
+        {
+            Bitmap grayscaleImage = ConvertToGrayscale(image);
+            (Bitmap Ix, Bitmap Iy) = CalculateSpatialDerivatives(grayscaleImage);
+            Bitmap responseImage = CalculateHarrisResponse(grayscaleImage, Ix, Iy);
+            Bitmap corners = NonMaximumSuppression(responseImage);
 
-        return corners;
+            return corners;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred in DetectHarrisCorners: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            throw;
+        }
     }
 
     /**
@@ -291,24 +341,109 @@ class EdgeDetectionApp
      */
     private static (Bitmap, Bitmap) CalculateSpatialDerivatives(Bitmap image)
     {
-        Bitmap Ix = new Bitmap(image.Width, image.Height);
-        Bitmap Iy = new Bitmap(image.Width, image.Height);
-
-        for (int y = 1; y < image.Height - 1; y++)
+        try
         {
-            for (int x = 1; x < image.Width - 1; x++)
+            Bitmap Ix = new Bitmap(image.Width, image.Height);
+            Bitmap Iy = new Bitmap(image.Width, image.Height);
+
+            for (int y = 1; y < image.Height - 1; y++)
             {
-                int dx = (image.GetPixel(x + 1, y).R - image.GetPixel(x - 1, y).R) / 2;
-                int dy = (image.GetPixel(x, y + 1).R - image.GetPixel(x, y - 1).R) / 2;
+                for (int x = 1; x < image.Width - 1; x++)
+                {
+                    int dx = (image.GetPixel(x + 1, y).R - image.GetPixel(x - 1, y).R) / 2;
+                    int dy = (image.GetPixel(x, y + 1).R - image.GetPixel(x, y - 1).R) / 2;
 
-                Ix.SetPixel(x, y, Color.FromArgb(dx, dx, dx));
-                Iy.SetPixel(x, y, Color.FromArgb(dy, dy, dy));
+                    Ix.SetPixel(x, y, Color.FromArgb(dx, dx, dx));
+                    Iy.SetPixel(x, y, Color.FromArgb(dy, dy, dy));
+                }
             }
-        }
 
-        return (Ix, Iy);
+            return (Ix, Iy);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred in CalculateSpatialDerivatives: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            throw;
+        }
     }
 
+    /**
+     * This method calculates the Harris response for each pixel in a given image using its spatial derivatives.
+     * The Harris response is a measure of corner strength, computed using the determinant and trace of the second moment matrix.
+     * 
+     * The method returns a new Bitmap image where each pixel intensity represents the normalized Harris response value.
+     * 
+     * Parameters:
+     *   Bitmap image - The input grayscale image.
+     *   Bitmap Ix - The derivative of the image along the x-axis.
+     *   Bitmap Iy - The derivative of the image along the y-axis.
+     * 
+     * Returns:
+     *   Bitmap - A new Bitmap image with Harris response values normalized to the range [0, 255].
+     * 
+     * Note:
+     *   - The method assumes that the input image and its derivatives are all grayscale images.
+     *   - The border pixels (the first and last rows and columns) are not processed to avoid boundary issues.
+     */
+    private static Bitmap CalculateHarrisResponse(Bitmap image, Bitmap Ix, Bitmap Iy)
+    {
+        try
+        {
+            Bitmap response = new Bitmap(image.Width, image.Height);
+            double[,] responseValues = new double[image.Width, image.Height];
+            double maxResponse = double.MinValue;
+            double minResponse = double.MaxValue;
+
+            for (int y = 1; y < image.Height - 1; y++)
+            {
+                for (int x = 1; x < image.Width - 1; x++)
+                {
+                    double Ixx = 0, Iyy = 0, Ixy = 0;
+
+                    for (int v = -1; v <= 1; v++)
+                    {
+                        for (int u = -1; u <= 1; u++)
+                        {
+                            int ix = Ix.GetPixel(x + u, y + v).R;
+                            int iy = Iy.GetPixel(x + u, y + v).R;
+
+                            Ixx += ix * ix;
+                            Iyy += iy * iy;
+                            Ixy += ix * iy;
+                        }
+                    }
+
+                    double determinant = (Ixx * Iyy) - (Ixy * Ixy);
+                    double trace = Ixx + Iyy;
+                    double responseValue = determinant - 0.04 * trace * trace;
+
+                    responseValues[x, y] = responseValue;
+                    if (responseValue > maxResponse) maxResponse = responseValue;
+                    if (responseValue < minResponse) minResponse = responseValue;
+                }
+            }
+
+            for (int y = 1; y < image.Height - 1; y++)
+            {
+                for (int x = 1; x < image.Width - 1; x++)
+                {
+                    double normalizedResponse = 255.0 * (responseValues[x, y] - minResponse) / (maxResponse - minResponse);
+                    int intensity = (int)normalizedResponse;
+                    intensity = Math.Max(0, Math.Min(255, intensity));
+                    response.SetPixel(x, y, Color.FromArgb(intensity, intensity, intensity));
+                }
+            }
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred in CalculateHarrisResponse: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            throw;
+        }
+    }
 
     /**
      * This method performs non-maximum suppression on a given Bitmap image.
@@ -321,165 +456,58 @@ class EdgeDetectionApp
      */
     private static Bitmap NonMaximumSuppression(Bitmap response)
     {
-        // Create a new Bitmap to store the result of the non-maximum suppression
-        Bitmap corners = new Bitmap(response.Width, response.Height);
-
-        // Loop through each pixel in the image, excluding the border pixels
-        for (int y = 1; y < response.Height - 1; y++)
+        try
         {
-            for (int x = 1; x < response.Width - 1; x++)
-            {
-                // Get the color of the current pixel
-                Color pixelColor = response.GetPixel(x, y);
-                bool isCorner = true;
+            // Create a new Bitmap to store the result of the non-maximum suppression
+            Bitmap corners = new Bitmap(response.Width, response.Height);
 
-                // Check the 3x3 neighborhood of the current pixel
-                for (int v = -1; v <= 1; v++)
+            // Loop through each pixel in the image, excluding the border pixels
+            for (int y = 1; y < response.Height - 1; y++)
+            {
+                for (int x = 1; x < response.Width - 1; x++)
                 {
-                    for (int u = -1; u <= 1; u++)
+                    // Get the color of the current pixel
+                    Color pixelColor = response.GetPixel(x, y);
+                    bool isCorner = true;
+
+                    // Check the 3x3 neighborhood of the current pixel
+                    for (int v = -1; v <= 1; v++)
                     {
-                        // Skip the current pixel itself
-                        if (u == 0 && v == 0) continue;
-                        // If any neighboring pixel has a higher intensity, mark the current pixel as not a corner
-                        if (response.GetPixel(x + u, y + v).R > pixelColor.R)
+                        for (int u = -1; u <= 1; u++)
                         {
-                            isCorner = false;
-                            break;
+                            // Skip the current pixel itself
+                            if (u == 0 && v == 0) continue;
+                            // If any neighboring pixel has a higher intensity, mark the current pixel as not a corner
+                            if (response.GetPixel(x + u, y + v).R > pixelColor.R)
+                            {
+                                isCorner = false;
+                                break;
+                            }
                         }
+                        // If the current pixel is not a corner, break out of the outer loop as well
+                        if (!isCorner) break;
                     }
-                    // If the current pixel is not a corner, break out of the outer loop as well
-                    if (!isCorner) break;
-                }
 
-                // If the current pixel is a corner, set it to red in the corners Bitmap, otherwise set it to black
-                if (isCorner)
-                {
-                    corners.SetPixel(x, y, Color.Red);
-                }
-                else
-                {
-                    corners.SetPixel(x, y, Color.Black);
-                }
-            }
-        }
-
-        // Return the resulting Bitmap with the detected corners
-        return corners;
-    }
-
-
-
-    /*
-     * Understanding Harris Corner Detection Algorithm in Image Processing
-     *
-     * Harris Corner Detection is a significant method in the field of computer vision and image processing,
-     * primarily used to identify corners and interest points in an image. The code snippet provided implements
-     * a function `CalculateHarrisResponse`, which calculates the Harris response for each pixel in a given image.
-     * This response helps in detecting corners by analyzing the gradients in the image.
-     *
-     * Overview of Harris Corner Detection
-     *
-     * The Harris Corner Detection algorithm was developed by Chris Harris and Mike Stephens in 1988 and is
-     * widely used for corner detection because of its accuracy and efficiency.
-     *
-     * The core idea of the Harris Corner Detection algorithm is based on the differential of the corner score
-     * with respect to direction, which measures the changes in intensity. Corners are regions in the image
-     * where the intensity changes significantly in all directions. The algorithm involves the following steps:
-     *
-     * 1. Compute the image gradients (Ix and Iy) using a derivative mask.
-     * 2. Compute the products of derivatives at each pixel: Ix^2, Iy^2, and Ix*Iy.
-     * 3. Apply a Gaussian window function to smooth the derivative products.
-     * 4. Compute the corner response R for each pixel using the formula:
-     *    R = det(M) - k * (trace(M))^2
-     *    where M is the second moment matrix or the structure tensor at each pixel.
-     *
-     * Let's now break down the provided code to understand its implementation in C#.
-     *
-     * Code Breakdown
-     *
-     * Function Definition
-     */
-    private static Bitmap CalculateHarrisResponse(Bitmap image, Bitmap Ix, Bitmap Iy)
-    {
-        /*
-         * The function `CalculateHarrisResponse` is defined as `private static`, indicating it is a static method
-         * that cannot be accessed outside its class. It takes three parameters: the original image (`image`),
-         * and the gradient images (`Ix` and `Iy`), which represent the gradients in the x and y directions, respectively.
-         *
-         * The method initializes a new bitmap `response` to store the Harris response values and a 2D array `responseValues`
-         * to keep the calculated response values for each pixel. It also initializes `maxResponse` and `minResponse`
-         * to track the maximum and minimum response values, which will be used for normalization later.
-         */
-
-        Bitmap response = new Bitmap(image.Width, image.Height);
-        double[,] responseValues = new double[image.Width, image.Height];
-        double maxResponse = double.MinValue;
-        double minResponse = double.MaxValue;
-
-        /*
-         * Gradient Computation Loop
-         *
-         * This nested loop iterates through each pixel in the image, except for the border pixels. For each pixel,
-         * it initializes `Ixx`, `Iyy`, and `Ixy` to zero. These variables will accumulate the products of gradients
-         * over a 3x3 neighborhood around the pixel.
-         *
-         * Within the inner loops, the code fetches the gradient values `ix` and `iy` for each pixel in the 3x3 neighborhood
-         * using the `GetPixel` method. It then computes the products of these gradients, which are summed into `Ixx`, `Iyy`,
-         * and `Ixy`.
-         */
-
-        for (int y = 1; y < image.Height - 1; y++)
-        {
-            for (int x = 1; x < image.Width - 1; x++)
-            {
-                double Ixx = 0, Iyy = 0, Ixy = 0;
-
-                for (int v = -1; v <= 1; v++)
-                {
-                    for (int u = -1; u <= 1; u++)
+                    // If the current pixel is a corner, set it to red in the corners Bitmap, otherwise set it to black
+                    if (isCorner)
                     {
-                        int ix = Ix.GetPixel(x + u, y + v).R;
-                        int iy = Iy.GetPixel(x + u, y + v).R;
-
-                        Ixx += ix * ix;
-                        Iyy += iy * iy;
-                        Ixy += ix * iy;
+                        corners.SetPixel(x, y, Color.Red);
+                    }
+                    else
+                    {
+                        corners.SetPixel(x, y, Color.Black);
                     }
                 }
-                /*
-                 * After exiting the inner loops, the code computes the determinant and trace of the second moment matrix M,
-                 * and subsequently calculates the Harris response value for the pixel using the formula:
-                 * R = det(M) - k * (trace(M))^2
-                 * Here, k is an empirical constant, typically around 0.04. The response value is stored in `responseValues`,
-                 * and `maxResponse` and `minResponse` are updated to keep track of the range of response values.
-                 */
-
-                double determinant = (Ixx * Iyy) - (Ixy * Ixy);
-                double trace = Ixx + Iyy;
-                double responseValue = determinant - 0.04 * trace * trace;
-
-                responseValues[x, y] = responseValue;
-                if (responseValue > maxResponse) maxResponse = responseValue;
-                if (responseValue < minResponse) minResponse = responseValue;
             }
+
+            // Return the resulting Bitmap with the detected corners
+            return corners;
         }
-
-
-        // Normalize the response values to the range [0, 255]
-        for (int y = 1; y < image.Height - 1; y++)
+        catch (Exception ex)
         {
-            for (int x = 1; x < image.Width - 1; x++)
-            {
-                double normalizedResponse = 255.0 * (responseValues[x, y] - minResponse) / (maxResponse - minResponse);
-                int intensity = (int)normalizedResponse;
-                intensity = Math.Max(0, Math.Min(255, intensity)); // Ensure the intensity is within [0, 255]
-                response.SetPixel(x, y, Color.FromArgb(intensity, intensity, intensity));
-            }
+            Console.WriteLine($"An error occurred in NonMaximumSuppression: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            throw;
         }
-
-        return response;
     }
-
-
 }
-
