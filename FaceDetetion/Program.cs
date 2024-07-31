@@ -170,7 +170,7 @@ class EdgeDetectionApp
         string outputFileName = "sobel_" + Path.GetFileName(file);
         string outputFileName2 = "harris_" + Path.GetFileName(file);
         string outputFilePath = Path.Combine(inputDirectoryPath, outputFileName);
-
+        string outputFilePath2 = Path.Combine(inputDirectoryPath, outputFileName2);
         try
         {
             using (Bitmap inputImage = new Bitmap(file))
@@ -178,7 +178,7 @@ class EdgeDetectionApp
                 Bitmap edgeImage = SobelEdgeDetection(inputImage); 
                 edgeImage.Save(outputFilePath);
                 Bitmap harrisImage = DetectHarrisCorners(edgeImage);
-                harrisImage.Save(outputFileName2);
+                harrisImage.Save(outputFilePath2);
                 Console.WriteLine($"Edge and corner detection completed for {file}. Result saved to {outputFilePath}");
             }
         }
