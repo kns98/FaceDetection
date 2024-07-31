@@ -301,15 +301,70 @@ class EdgeDetectionApp
             Bitmap grayscaleImage = ConvertToGrayscale(image);
             (Bitmap Ix, Bitmap Iy) = CalculateSpatialDerivatives(grayscaleImage);
             Bitmap responseImage = CalculateHarrisResponse(grayscaleImage, Ix, Iy);
-            Bitmap corners = NonMaximumSuppression(responseImage);
+            //Bitmap corners = NonMaximumSuppression(responseImage);
+            List<Point> corners_ = FindCorners(responseImage, 10, 10);
 
-            return corners;
+            // Draw circles around detected corners
+            foreach (var corner in corners_)
+            {
+                DrawCircle(grayscaleImage, corner.X, corner.Y, 5, Color.Red);
+            }
+
+            return grayscaleImage;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"An error occurred in DetectHarrisCorners: {ex.Message}");
             Console.WriteLine(ex.StackTrace);
             throw;
+        }
+    }
+    private static List<Point> FindCorners(Bitmap response, double threshold, int minDistance)
+    {
+        List<Point> corners = new List<Point>();
+        for (int y = 1; y < response.Height - 1; y++)
+        {
+            for (int x = 1; x < response.Width - 1; x++)
+            {
+                if (response.GetPixel(x, y).R > threshold)
+                {
+                    bool tooClose = false;
+                    foreach (var corner in corners)
+                    {
+                        int dx = corner.X - x;
+                        int dy = corner.Y - y;
+                        if (dx * dx + dy * dy < minDistance * minDistance)
+                        {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+                    if (!tooClose)
+                    {
+                        corners.Add(new Point(x, y));
+                    }
+                }
+            }
+        }
+        return corners;
+    }
+
+    private static void DrawCircle(Bitmap image, int centerX, int centerY, int radius, Color color)
+    {
+        for (int y = -radius; y <= radius; y++)
+        {
+            for (int x = -radius; x <= radius; x++)
+            {
+                if (x * x + y * y <= radius * radius)
+                {
+                    int drawX = centerX + x;
+                    int drawY = centerY + y;
+                    if (drawX >= 0 && drawX < image.Width && drawY >= 0 && drawY < image.Height)
+                    {
+                        image.SetPixel(drawX, drawY, color);
+                    }
+                }
+            }
         }
     }
 
