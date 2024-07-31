@@ -345,7 +345,10 @@ class EdgeDetectionApp
         {
             Bitmap Ix = new Bitmap(image.Width, image.Height);
             Bitmap Iy = new Bitmap(image.Width, image.Height);
+            double minIx = double.MaxValue, maxIx = double.MinValue;
+            double minIy = double.MaxValue, maxIy = double.MinValue;
 
+            // First pass: calculate gradients and find min and max values
             for (int y = 1; y < image.Height - 1; y++)
             {
                 for (int x = 1; x < image.Width - 1; x++)
@@ -353,8 +356,26 @@ class EdgeDetectionApp
                     int dx = (image.GetPixel(x + 1, y).R - image.GetPixel(x - 1, y).R) / 2;
                     int dy = (image.GetPixel(x, y + 1).R - image.GetPixel(x, y - 1).R) / 2;
 
-                    Ix.SetPixel(x, y, Color.FromArgb(dx, dx, dx));
-                    Iy.SetPixel(x, y, Color.FromArgb(dy, dy, dy));
+                    if (dx < minIx) minIx = dx;
+                    if (dx > maxIx) maxIx = dx;
+                    if (dy < minIy) minIy = dy;
+                    if (dy > maxIy) maxIy = dy;
+                }
+            }
+
+            // Second pass: normalize gradients and set pixels
+            for (int y = 1; y < image.Height - 1; y++)
+            {
+                for (int x = 1; x < image.Width - 1; x++)
+                {
+                    int dx = (image.GetPixel(x + 1, y).R - image.GetPixel(x - 1, y).R) / 2;
+                    int dy = (image.GetPixel(x, y + 1).R - image.GetPixel(x, y - 1).R) / 2;
+
+                    int normalizedDx = (int)(255.0 * (dx - minIx) / (maxIx - minIx));
+                    int normalizedDy = (int)(255.0 * (dy - minIy) / (maxIy - minIy));
+
+                    Ix.SetPixel(x, y, Color.FromArgb(normalizedDx, normalizedDx, normalizedDx));
+                    Iy.SetPixel(x, y, Color.FromArgb(normalizedDy, normalizedDy, normalizedDy));
                 }
             }
 
@@ -367,6 +388,7 @@ class EdgeDetectionApp
             throw;
         }
     }
+
 
     /**
      * This method calculates the Harris response for each pixel in a given image using its spatial derivatives.
